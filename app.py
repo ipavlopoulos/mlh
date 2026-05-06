@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 from config import Config
+from landscape_app.routes import init_landscape_app, landscape_bp
 from services.bedrock_service import BedrockService
 from services.gemini_service import GeminiService
 from services.model_service import SwinPredictor
@@ -25,10 +26,12 @@ app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, Config.URL_PREFIX)
+app.register_blueprint(landscape_bp, url_prefix="/landscape")
 
 predictor = SwinPredictor(Config.MODEL_PATH, Config.LABELS, Config.IMG_SIZE)
 gemini = GeminiService(Config.GEMINI_API_KEY, Config.GEMINI_MODEL)
 bedrock = BedrockService(Config.AWS_REGION, Config.BEDROCK_MODEL_ID)
+init_landscape_app()
 
 
 @app.route("/health")

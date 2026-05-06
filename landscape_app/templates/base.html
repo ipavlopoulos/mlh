@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Landscape Corpus</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+:root {
+    --accent: #9b7cf5;
+    --accent-soft: #c4b5fd;
+    --bg-main: #f5f3fb;
+    --bg-soft: #ece8f7;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+}
+
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    background: linear-gradient(180deg, var(--bg-main), var(--bg-soft));
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text-main);
+}
+
+.navbar {
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-bottom: 1px solid #e5e7eb;
+    backdrop-filter: blur(8px);
+}
+
+.navbar-brand {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.glass {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.btn-primary {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+}
+
+.btn-primary:hover {
+    background: #8b6df0;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+}
+
+.form-control:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(155, 124, 245, 0.2);
+}
+
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+@media (max-width: 768px) {
+    .sticky-card {
+        position: relative !important;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<nav class="navbar sticky-top">
+    <div class="container">
+        <a class="navbar-brand text-decoration-none" href="{{ url_for('landscape.index') }}">Landscape Corpus</a>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+.img-frame {
+    height: 220px;
+    overflow: hidden;
+    border-radius: 12px 12px 0 0;
+    background: #e5e7eb;
+}
+
+.img-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.text-box {
+    background: #f7f5ff;
+    border-left: 3px solid var(--accent);
+    font-size: 0.9rem;
+}
+
+.info-box {
+    border-left: 4px solid var(--accent);
+}
+</style>
+
+<div class="info-box p-4 mb-4 glass">
+    <div class="row align-items-center">
+        <div class="col-md-4 text-center mb-3 mb-md-0">
+            <img src="{{ url_for('landscape.static', filename='wall.png') }}"
+                 style="max-width: 100%; height: auto; opacity: 0.85;"
+                 alt="Wall writing illustration">
+        </div>
+
+        <div class="col-md-8">
+            <h4 class="fw-semibold mb-3">About Wall Writings</h4>
+
+            <p class="text-muted">
+                Wall writings are traces of human presence in public space: fragments of thought,
+                resistance, humor, and identity left on walls, streets, and surfaces.
+            </p>
+
+            <p class="text-muted">
+                They take many forms such as slogans, poems, political messages,
+                or spontaneous expressions, shaped by place and moment.
+            </p>
+
+            <p class="text-muted">
+                This project documents these inscriptions to build a living archive of urban expression.
+            </p>
+
+            <hr>
+
+            <h6 class="fw-semibold mt-3">Submission Guidelines</h6>
+            <ul class="text-muted small mb-0">
+                <li>Upload clear images of wall writings</li>
+                <li>Enable location services for automatic location filling</li>
+                <li>Include accurate location details</li>
+                <li>Use short labels, such as poem, slogan, political</li>
+                <li>Add context or meaning if relevant</li>
+                <li>Uploading may take a little while</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+<div class="col-lg-4 mb-4">
+    <div class="card p-3 glass sticky-card border-0">
+        <h5 class="fw-semibold mb-3">Add Entry</h5>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-success text-center">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+
+            <input type="file"
+                   name="image"
+                   class="form-control mb-2"
+                   id="imageInput"
+                   accept="image/*"
+                   capture="environment"
+                   required>
+
+            <input type="hidden" name="latitude" id="latitude">
+            <input type="hidden" name="longitude" id="longitude">
+
+            <input type="text" id="country" name="country" class="form-control mb-2" placeholder="Country">
+            <input type="text" id="city" name="city" class="form-control mb-2" placeholder="City">
+            <input type="text" id="street" name="street" class="form-control mb-2" placeholder="Street">
+
+            <p class="text-muted small">
+                Please check if the data are correct or fill them in yourself.
+            </p>
+
+            <input type="text" name="content_type" class="form-control mb-2" placeholder="Content type">
+
+            <textarea name="transcription" class="form-control mb-2" rows="2"
+                placeholder="Transcription"></textarea>
+
+            <textarea name="comments" class="form-control mb-3" rows="3"
+                placeholder="Comments"></textarea>
+
+            <button class="btn btn-primary w-100">Upload</button>
+        </form>
+    </div>
+</div>
+
+<div class="col-lg-8">
+    <div class="row">
+        {% for item in items %}
+        <div class="col-md-6 mb-3">
+            <div class="card glass border-0">
+                <div class="img-frame">
+                    <img src="{{ url_for('landscape.uploaded_file', filename=item.image_path) }}" alt="{{ item.original_filename or 'Wall writing' }}">
+                </div>
+
+                <div class="card-body">
+                    <div class="fw-semibold small text-uppercase text-muted">
+                        {{ item.location }}
+                    </div>
+
+                    {% if item.coordinates %}
+                    <div class="text-muted small mt-1">
+                        {{ item.coordinates }}
+                    </div>
+                    {% endif %}
+
+                    {% if item.transcription %}
+                    <div class="text-box p-2 mt-2 rounded">
+                        {{ item.transcription }}
+                    </div>
+                    {% endif %}
+
+                    {% if item.comments %}
+                    <div class="text-muted small mt-2">
+                        {{ item.comments }}
+                    </div>
+                    {% endif %}
+
+                    {% if item.content_type %}
+                    <div class="text-muted small mt-1">
+                        #{{ item.content_type }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+</div>
+
+<div id="uploadOverlay" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-3 text-muted">Uploading...</p>
+</div>
+
+<script>
+let locationReady = false;
+
+function getLocationAndFill() {
+    if (!navigator.geolocation) {
+        locationReady = true;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function (position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            document.getElementById("latitude").value = lat;
+            document.getElementById("longitude").value = lon;
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.address) {
+                        const addr = data.address;
+                        if (!country.value) country.value = addr.country || "";
+                        if (!city.value) city.value = addr.city || addr.town || addr.village || "";
+                        if (!street.value) street.value = addr.road || "";
+                    }
+                    locationReady = true;
+                })
+                .catch(() => {
+                    locationReady = true;
+                });
+        },
+        function () {
+            locationReady = true;
+        }
+    );
+}
+
+window.onload = getLocationAndFill;
+
+document.getElementById("uploadForm").addEventListener("submit", function (event) {
+    if (!locationReady) {
+        event.preventDefault();
+        alert("Getting your location... please wait a moment and try again.");
+        return;
+    }
+    document.getElementById("uploadOverlay").style.display = "flex";
+});
+</script>
+
+{% endblock %}

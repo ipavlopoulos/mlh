@@ -5,6 +5,7 @@ Flask app containing several small machine-learning and LLM demos:
 - Alzheimer's image prediction UI backed by a Swin Transformer checkpoint
 - Local LLM proxy UI
 - Way To School and WalkFree pages using Gemini/Firebase integrations
+- Landscape Corpus wall-writing archive
 
 ## Setup
 
@@ -41,6 +42,7 @@ Health checks:
 
 - `/health`
 - `/health/model`
+- `/landscape`
 
 ## Checks
 

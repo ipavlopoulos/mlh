@@ -8,7 +8,7 @@ def assert_ok(path):
 
 
 def main():
-    for path in ["/", "/alzheimer", "/llm", "/health"]:
+    for path in ["/", "/alzheimer", "/llm", "/landscape/", "/health"]:
         assert_ok(path)
     print("Smoke tests passed.")
 

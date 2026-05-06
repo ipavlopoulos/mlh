@@ -17,3 +17,8 @@ ssl/
 *.pth
 *.pt
 *.onnx
+
+landscape_app/database/*.db
+landscape_app/database/*.sqlite*
+landscape_app/uploads/landscape/*
+!landscape_app/uploads/landscape/.gitkeep

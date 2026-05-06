@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Two-Agent LLM Discussion Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .chat-bubble { max-width: 75%; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <div class="max-w-5xl mx-auto bg-white shadow-xl rounded-2xl p-6 space-y-6">
+
+    <h1 class="text-2xl font-bold">Two-Agent LLM Discussion Simulator</h1>
+
+    <!-- Topic input -->
+    <div>
+      <label class="block font-semibold mb-1">Discussion topic</label>
+      <input id="topic" type="text" class="w-full border rounded-lg p-2" placeholder="e.g. Should AI be regulated in higher education?" />
+    </div>
+
+    <!-- Agent configuration -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block font-semibold mb-1">Agent A background</label>
+        <select id="agentA" class="w-full border rounded-lg p-2">
+          <option value="young progressive data scientist">Young progressive data scientist</option>
+          <option value="senior conservative policy maker">Senior conservative policy maker</option>
+          <option value="middle-aged teacher with moderate views">Middle-aged teacher (moderate)</option>
+          <option value="economist focused on market efficiency">Economist (market-oriented)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-1">Agent B background</label>
+        <select id="agentB" class="w-full border rounded-lg p-2">
+          <option value="young progressive data scientist">Young progressive data scientist</option>
+          <option value="senior conservative policy maker">Senior conservative policy maker</option>
+          <option value="middle-aged teacher with moderate views">Middle-aged teacher (moderate)</option>
+          <option value="economist focused on market efficiency">Economist (market-oriented)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex gap-3">
+      <button id="startBtn" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700">Start discussion</button>
+      <button id="nextTurnBtn" class="bg-gray-600 text-white px-4 py-2 rounded-xl hover:bg-gray-700" disabled>Next turn</button>
+    </div>
+
+    <!-- Chat window -->
+    <div id="chat" class="border rounded-xl p-4 h-[400px] overflow-y-auto space-y-3 bg-gray-50"></div>
+
+    <!-- User intervention -->
+    <div>
+      <label class="block font-semibold mb-1">User intervention</label>
+      <textarea id="userIntervention" rows="3" class="w-full border rounded-lg p-2" placeholder="Interject, challenge, or redirect the discussion..."></textarea>
+      <button id="interveneBtn" class="mt-2 bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">Intervene</button>
+    </div>
+
+  </div>
+
+<script>
+/**********************************************************************
+ * STATE
+ **********************************************************************/
+let conversation = [];
+let currentSpeaker = 'A';
+
+/**********************************************************************
+ * UI HELPERS
+ **********************************************************************/
+function addMessage(sender, text) {
+  const chat = document.getElementById('chat');
+  const bubble = document.createElement('div');
+
+  bubble.className = `chat-bubble p-3 rounded-xl shadow ${sender === 'User'
+    ? 'bg-green-100 ml-auto'
+    : sender === 'Agent A'
+      ? 'bg-blue-100'
+      : 'bg-purple-100 ml-auto'}`;
+
+  bubble.innerHTML = `<strong>${sender}:</strong><br>${text}`;
+  chat.appendChild(bubble);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/**********************************************************************
+ * PROMPT CONSTRUCTION
+ **********************************************************************/
+function buildPrompt(agentLabel, agentBackground, topic, history) {
+  return `You are ${agentLabel}, a ${agentBackground}. You are participating in a discussion with another agent about [${topic}]. The conversation so far follows: ${history}. Respond thoughtfully, staying consistent with your background. Keep the response concise (1–2 paragraphs).`;
+}
+
+/**********************************************************************
+ * FLASK BACKEND CALL (with timeout)
+ **********************************************************************/
+async function callBedrock(prompt) {
+
+ /*
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000); // 30s timeout
+  */
+
+  try {
+    const response = await fetch("https://applied.ml.cs.aueb.gr/api/bedrock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "prompt": prompt }),
+      /*
+      signal: controller.signal
+      */
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("HTTP error:", response.status, text);
+      return "[HTTP error]";
+    }
+
+    const data = await response.json();
+    console.log("Bedrock response:", data);
+
+    if (data.error) {
+      console.error(data.error);
+      return "[Error from Bedrock]";
+    }
+
+    return (data.text || "[Empty response]");
+
+  } catch (err) {
+    if (err.name === "AbortError") {
+      console.error("Request timed out");
+      return "[Request timed out]";
+    }
+    console.error("Fetch error:", err);
+    return "[Network error]";
+  } finally {
+    /*clearTimeout(timeoutId);*/
+  }
+}
+
+/**********************************************************************
+ * TURN LOGIC
+ **********************************************************************/
+async function nextTurn() {
+  const topic = document.getElementById('topic').value;
+  const agentABg = document.getElementById('agentA').value;
+  const agentBBg = document.getElementById('agentB').value;
+
+  const agentLabel = currentSpeaker === 'A' ? 'Agent A' : 'Agent B';
+  const agentBg = currentSpeaker === 'A' ? agentABg : agentBBg;
+
+  const historyText = conversation.map(m => `${m.sender}: ${m.text}`).join('\n');
+  const prompt = buildPrompt(agentLabel, agentBg, topic, historyText);
+
+  addMessage(agentLabel, "Thinking...");
+
+  const reply = await callBedrock(prompt);
+
+  const chat = document.getElementById('chat');
+  chat.removeChild(chat.lastChild);
+
+  addMessage(agentLabel, reply);
+  conversation.push({ sender: agentLabel, text: reply });
+
+  currentSpeaker = currentSpeaker === 'A' ? 'B' : 'A';
+}
+
+/**********************************************************************
+ * EVENT LISTENERS
+ **********************************************************************/
+document.getElementById('startBtn').addEventListener('click', async () => {
+  conversation = [];
+  currentSpeaker = 'A';
+  document.getElementById('chat').innerHTML = '';
+
+  const topic = document.getElementById('topic').value;
+  if (!topic) {
+    alert('Please enter a topic.');
+    return;
+  }
+
+  document.getElementById('nextTurnBtn').disabled = false;
+  await nextTurn();
+});
+
+document.getElementById('nextTurnBtn').addEventListener('click', nextTurn);
+
+document.getElementById('interveneBtn').addEventListener('click', () => {
+  const text = document.getElementById('userIntervention').value;
+  if (!text) return;
+
+  addMessage('User', text);
+  conversation.push({ sender: 'User', text });
+  document.getElementById('userIntervention').value = '';
+});
+</script>
+
+</body>
+</html>

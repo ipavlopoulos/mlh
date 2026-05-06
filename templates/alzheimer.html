@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwriting Analysis for Alzheimer's</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Inter font and smooth transitions */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            transition: background-color 0.3s ease;
+        }
+        .card {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .btn-predict {
+            transition: all 0.2s ease;
+        }
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);
+        }
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spin 1s linear infinite;
+        }
+        .citation {
+            /* Basic typography and spacing */
+            font-family: 'Times New Roman', Times, serif; /* Traditional academic font */
+            font-size: 10pt; /* Standard size for reference lists, can be adjusted */
+            line-height: 1.4; /* Improves readability */
+            margin-bottom: 10px; /* Space after the citation */
+
+            /* Indentation for a standard Bibliography/Reference List look */
+            text-indent: -25px; /* Creates a hanging indent effect */
+            padding-left: 25px;
+
+            /* Visual appearance (optional but helpful) */
+            color: #333; /* Dark gray for soft contrast */
+            border-left: 3px solid #006699; /* A subtle blue line on the left to distinguish references */
+            padding-top: 5px;
+            padding-bottom: 5px;
+            padding-right: 5px;
+        }
+
+        /* Optional: Style for the italicized conference title */
+        .citation i {
+            /* Ensures the italicized text is visually distinct */
+            font-style: italic;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="card w-full max-w-2xl bg-white p-8 rounded-xl">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-2">Handwriting Task Analyzer</h1>
+       <div class="text-gray-500 mb-6">
+           <div class="text-gray-500 mb-6">
+    <!--h2>Application Overview and Test Instructions</h2-->
+    <p>The early identification of cognitive changes consistent with Alzheimer's disease is essential for timely management and effective care. This online application examines <b>handwriting analysis</b> through a writing test, aiming to become a future accessible and non-invasive screening method for early identification of potential issues in a non-clinical setting. The test involves drawing on a white paper, taking a picture of the drawing, and then uploading it. The drawing could be <strong>either</strong> of the following two tests:</p>
+
+    <div style="display: flex; justify-content: space-around; gap: 40px; margin: 20px 0; flex-wrap: wrap;">
+
+        <div style="flex-basis: 45%;">
+            <h3>1. The Clock Drawing Test (09:05)</h3>
+            <p>Draw the circle of a clock, the numbers, and then place the two hands to indicate the time 09:05.</p>
+            <img src="/static/nineOfive.jpg" alt="Example of clock drawing showing 9:05" style="max-width: 50%; height: auto; border: 1px solid #ccc; margin-top: 5px; border-radius: 3px;">
+        </div>
+
+        <div style="flex-basis: 45%;">
+            <h3>2. The Continuous Line Test</h3>
+            <p>Draw two points, connected with a horizontal line, pressing this horizontal line continuously with your pen <b>four</b> times.</p>
+            <img src="/static/straight-line.jpg" alt="Example of horizontal line drawing with four continuous presses" style="max-width: 80%; height: auto; border: 1px solid #ccc; margin-top: 5px; border-radius: 3px;">
+        </div>
+    </div>
+
+</div>
+
+<hr/>
+
+    <p style="margin-top: 20px;">To complete the process, save the drawing in a <strong>.jpg, .jpeg, or .png</strong> file. Then, upload the photo to the website and click the "Calculate Alzheimer's Risk" button.</p>
+    <div class="text-gray-500 mb-6" style="padding-top: 10px;">
+        <h4>DISCLAIMER</h4>
+        <p>We inform you that this is a pilot application, only analyzing the photos you upload without storing any information about the user. The calculated probabilities for Alzheimer's disease are intended to assist the healthcare professional and do not constitute a clinically accredited diagnosis.</p>
+    </div>
+     <div>
+         <h4>For more information, please read our scientific article:</h4>
+              <p class="citation">
+                    Boumpi, M. Dalakleidi, K. V., Pavlopoulos, J. (2025) From Pen to Prediction: Handwriting-Based Alzheimer’s Detection. In IEEE 25th International Conference on Bioinformatics and Bioengineering (BIBE), pages 671-675, Athens, Greece, 2025, <a href="https://doi.org/10.1109/BIBE66822.2025.00116">https://doi.org/10.1109/BIBE66822.2025.00116</a>
+              </p>
+     </div>
+
+    </div>
+        <hr/>
+
+        <!-- Status Message Box -->
+        <div id="statusMessage" class="hidden mb-4 p-3 rounded-lg text-sm" role="alert"></div>
+
+        <!-- File Upload Section -->
+        <div class="mb-6 border-2 border-dashed border-indigo-300 rounded-lg p-6 hover:border-indigo-500 transition duration-300">
+            <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="previewImage(event)">
+            <label for="imageUpload" class="block text-center cursor-pointer">
+                <svg class="mx-auto h-12 w-12 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V5a4 4 0 014-4h10a4 4 0 014 4v7a4 4 0 01-4 4h-3m-6 0v4a2 2 0 002 2h2a2 2 0 002-2v-4m-6 0h6"></path></svg>
+                <p class="mt-2 text-sm text-gray-600"><span class="font-semibold text-indigo-600">Click to upload</span> or drag and drop</p>
+                <p id="fileName" class="text-xs text-gray-400 mt-1">PNG, JPG, or JPEG (Max 1MB)</p>
+            </label>
+        </div>
+
+        <!-- Image Preview & Action Button -->
+        <div id="previewContainer" class="hidden mb-6">
+            <h2 class="text-xl font-semibold text-gray-700 mb-3">Uploaded Sample</h2>
+            <img id="imagePreview" class="w-full h-auto rounded-lg object-cover border border-gray-200" alt="Image Preview">
+        </div>
+
+        <button id="predictButton" onclick="startPrediction()" class="btn-predict w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 disabled:opacity-50" disabled>
+            Predicted Probability of Alzheimer's Disease
+        </button>
+
+        <!-- Prediction Results Section -->
+        <div id="resultContainer" class="hidden mt-8 p-6 bg-gray-50 rounded-lg border-l-4 border-indigo-600">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                Result
+                <div id="loader" class="loader h-6 w-6 border-4 border-gray-200 rounded-full hidden ml-3"></div>
+            </h2>
+
+            <!-- Main Prediction -->
+            <div class="mb-4">
+                <span class="text-sm font-medium text-gray-500">Prediction:</span>
+                <span id="predictionLabel" class="text-3xl font-extrabold ml-2"></span>
+            </div>
+
+            <!-- Probabilities -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-3 rounded-md border border-green-200">
+                    <p class="text-sm text-green-600 font-medium">"Healthy" Probability</p>
+                    <p id="probHealthy" class="text-2xl font-bold text-green-700 mt-1"></p>
+                </div>
+                <div class="bg-white p-3 rounded-md border border-red-200">
+                    <p class="text-sm text-red-600 font-medium">"Patient" Probability</p>
+                    <p id="probPatient" class="text-2xl font-bold text-red-700 mt-1"></p>
+                </div>
+            </div>
+            
+            <!--p class="text-xs text-gray-400 mt-4 italic">
+                *Note: Data is served by the Flask backend via the `/predict` endpoint.
+            </p-->
+        </div>
+    </div>
+
+    <script>
+        // --- Global State & Configuration ---
+        let selectedFile = null;
+        // CHANGED: Using a relative path now that Flask renders the page
+        const API_URL = '/predict'; 
+
+        // --- UI Utility Functions ---
+
+        function showStatus(message, type = 'info') {
+            const statusBox = document.getElementById('statusMessage');
+            statusBox.textContent = message;
+            statusBox.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-blue-100', 'text-blue-700');
+            
+            if (type === 'error') {
+                statusBox.classList.add('bg-red-100', 'text-red-700');
+            } else {
+                statusBox.classList.add('bg-blue-100', 'text-blue-700');
+            }
+        }
+
+        function hideStatus() {
+            document.getElementById('statusMessage').classList.add('hidden');
+        }
+
+        function previewImage(event) {
+            const fileInput = event.target;
+            const previewContainer = document.getElementById('previewContainer');
+            const imagePreview = document.getElementById('imagePreview');
+            const fileNameDisplay = document.getElementById('fileName');
+            const predictButton = document.getElementById('predictButton');
+            
+            // Clear previous results and status
+            document.getElementById('resultContainer').classList.add('hidden');
+            hideStatus();
+
+            if (fileInput.files && fileInput.files[0]) {
+                selectedFile = fileInput.files[0];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                };
+
+                reader.readAsDataURL(selectedFile);
+                
+                fileNameDisplay.textContent = selectedFile.name;
+                predictButton.disabled = false;
+            } else {
+                selectedFile = null;
+                imagePreview.src = '';
+                previewContainer.classList.add('hidden');
+                fileNameDisplay.textContent = 'PNG, JPG, or JPEG (Max 1MB)';
+                predictButton.disabled = true;
+            }
+        }
+
+        function displayResults(data) {
+            const resultContainer = document.getElementById('resultContainer');
+            const predictionLabel = document.getElementById('predictionLabel');
+            const probHealthy = document.getElementById('probHealthy');
+            const probPatient = document.getElementById('probPatient');
+
+            const predictedLabel = data.prediction;
+            
+            predictionLabel.textContent = predictedLabel;
+            predictionLabel.classList.remove('text-green-700', 'text-red-700');
+            
+            // Set colors based on the prediction
+            if (predictedLabel === "Healthy") {
+                predictionLabel.classList.add('text-green-700');
+                resultContainer.style.borderColor = '#10B981'; /* Green-500 */
+            } else {
+                predictionLabel.classList.add('text-red-700');
+                resultContainer.style.borderColor = '#EF4444'; /* Red-500 */
+            }
+
+            probHealthy.textContent = `${(data.healthy_prob * 100).toFixed(2)}%`;
+            probPatient.textContent = `${(data.patient_prob * 100).toFixed(2)}%`;
+            
+            resultContainer.classList.remove('hidden');
+        }
+
+        // --- Prediction Logic (Connects to Flask) ---
+        async function startPrediction() {
+            if (!selectedFile) return;
+
+            const predictButton = document.getElementById('predictButton');
+            const loader = document.getElementById('loader');
+            
+            // UI before prediction
+            hideStatus();
+            document.getElementById('resultContainer').classList.add('hidden');
+            predictButton.disabled = true;
+            predictButton.textContent = "Analyzing...";
+            loader.classList.remove('hidden');
+            
+            try {
+                // Prepare form data for image upload
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+
+                // Send request to Flask backend
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Server error occurred.');
+                }
+
+                // Display Results
+                displayResults(data);
+
+            } catch (error) {
+                console.error("Prediction Error:", error);
+                // The URL is now relative, so the status message needs to guide the user to the correct root URL.
+                showStatus(`Failed to connect to the prediction server or an error occurred: ${error.message}. Please ensure the Python server is running and accessible at http://127.0.0.1:5000/`, 'error');
+
+            } finally {
+                // UI after prediction (success or failure)
+                predictButton.disabled = false;
+                predictButton.textContent = "Predict Alzheimer's Risk";
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLM Multiple Choice Quiz Generator</title>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DYQHM3KLYT"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', 'G-DYQHM3KLYT');
+    </script>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- EXIF library -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <!-- Load Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- STANDARD CSS STYLES -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+            min-height: 100vh;
+        }
+        .card {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .answer-option {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .answer-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        /* Style for the user's selected option */
+        .answer-option.selected-by-user {
+            border-color: #3b82f6; /* Blue border */
+            background-color: #eff6ff; /* Light blue background */
+            box-shadow: 0 0 0 2px #3b82f6;
+        }
+        /* Styles applied after answer reveal */
+        .answer-option.correct {
+            background-color: #d1fae5 !important; /* Light green */
+            border-color: #10b981 !important; /* Green border */
+            box-shadow: 0 0 0 2px #10b981;
+        }
+        .answer-option.incorrect {
+            background-color: #fee2e2 !important; /* Light red */
+            border-color: #ef4444 !important; /* Red border */
+            box-shadow: 0 0 0 2px #ef4444;
+        }
+        .loading-ring {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <!-- TAILWIND CUSTOM UTILITIES (Requires type="text/tailwindcss" for @apply to work via CDN) -->
+    <style type="text/tailwindcss">
+        /* Custom styles for the interactive selection pills */
+        .selection-pill {
+            /* Common styles */
+            @apply px-4 py-2 rounded-full text-sm font-medium border transition duration-200 whitespace-nowrap cursor-pointer;
+            /* Default state with shadow */
+            @apply border-gray-200 bg-white text-gray-700 shadow-sm;
+            /* Hover effect: slight color change and increased shadow */
+            @apply hover:bg-blue-50 hover:border-blue-400 hover:shadow-md;
+        }
+        .selection-pill.selected {
+            /* Selected state: Stronger color, more prominent shadow, and slight scale for emphasis */
+            @apply bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-300/50 transform scale-[1.02];
+            /* Hover on selected: Darker background and more intense shadow */
+            @apply hover:bg-blue-700 hover:border-blue-700 hover:shadow-xl hover:scale-[1.03];
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-2xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">🖼️ Image-to-Quiz VLM</h1>
+            <p class="text-gray-500 mt-2">Upload an image and let the model generate a multiple-choice question.</p>
+        </header>
+
+        <!-- Input Card -->
+        <div class="card bg-white p-6 rounded-xl mb-8 border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Customize Quiz Parameters</h2>
+
+            <div class="space-y-4 mb-4">
+                <!-- Target Audience Selector -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Target Audience:</label>
+                    <!-- Hidden input stores the selected value, default is Kids (8-10) -->
+                    <input type="hidden" id="ageInput" value="kids 8 to 10">
+                    <div id="ageSelection" class="flex flex-wrap gap-2">
+                        <button type="button" class="selection-pill" data-value="general audience">General Audience</button>
+                        <button type="button" class="selection-pill selected" data-value="kids 8 to 10">Kids (8-10)</button>
+                        <button type="button" class="selection-pill" data-value="teenager">Teenagers</button>
+                        <button type="button" class="selection-pill" data-value="adult">Adults</button>
+                    </div>
+                </div>
+
+                <!-- Specific Theme Selector -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Specific Theme/Topic (Optional):</label>
+                    <!-- Hidden input stores the selected value, default is Antisocial Parking -->
+                    <input type="hidden" id="themeInput" value="antisocial parking">
+                    <div id="themeSelection" class="flex flex-wrap gap-2">
+                        <button type="button" class="selection-pill" data-value="">General</button>
+                        <button type="button" class="selection-pill selected" data-value="antisocial parking">Antisocial Parking</button>
+                        <button type="button" class="selection-pill" data-value="arts">Arts</button>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Upload Image (Max 1024px Resolution)</h2>
+            <input type="file" id="imageInput" accept="image/*" capture="environment" class="w-full border border-gray-300 rounded-lg p-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-150">
+
+            <button id="generateButton" onclick="generateQuestion()" class="mt-4 w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition duration-150 flex items-center justify-center disabled:opacity-50" disabled>
+                <span id="buttonText">Generate Question</span>
+                <div id="loadingIndicator" class="loading-ring ml-3 hidden"></div>
+            </button>
+        </div>
+
+        <!-- Result Card -->
+        <div id="resultCard" class="card bg-white p-6 rounded-xl border border-gray-100 hidden">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Generated Quiz</h2>
+
+            <!-- Preview Image -->
+            <div id="imagePreviewContainer" class="mb-4 hidden">
+                <p class="text-sm text-gray-500 mb-2">Image Used:</p>
+                <img id="uploadedImagePreview" class="max-h-60 w-full object-contain rounded-lg border border-gray-200 bg-gray-50" alt="Uploaded image preview">
+            </div>
+
+            <!-- Question Area -->
+            <div id="questionContainer" class="mb-6">
+                <p class="text-lg font-medium text-gray-800" id="questionText"></p>
+                <div id="optionsContainer" class="space-y-3 mt-4">
+                    <!-- Options will be injected here -->
+                </div>
+            </div>
+
+            <!-- Answer Button/Area -->
+            <div class="mt-6 border-t pt-4">
+                <button id="showAnswerButton" onclick="showAnswer()" class="bg-indigo-500 text-white py-2 px-5 rounded-lg font-semibold hover:bg-indigo-600 transition duration-150">
+                    Show Correct Answer
+                </button>
+                <p id="answerText" class="text-lg font-bold mt-3 text-green-600 hidden"></p>
+            </div>
+        </div>
+
+        <div id="mapCard" class="card bg-white p-6 rounded-xl border border-gray-100 mt-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">📍 Map of Generated Quizzes</h2>
+
+            <div id="quizMap" style="height: 400px;" class="w-full rounded-lg border border-gray-300 mb-4 bg-gray-50"></div>
+
+            <div id="markerDetails" class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm hidden">
+                <p class="font-bold text-blue-700 mb-1">Selected Quiz:</p>
+                <p id="detailQuestion" class="text-gray-800"></p>
+                <p id="detailLocation" class="text-gray-600 mt-1"></p>
+                <p id="detailAnswer" class="text-green-600 font-medium mt-2"></p>
+            </div>
+        </div>
+
+        <!-- Error Message Box -->
+        <div id="errorBox" class="hidden fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg max-w-xs transition-opacity duration-300" role="alert">
+            <p class="font-bold">Error</p>
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <!-- Firebase Initialization and Logic -->
+    <script type="module">
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setDoc, doc, collection, query, where, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase variables
+        let app;
+        let db;
+        let auth;
+        window.userId = null;
+        window.isAuthReady = false;
+        // New global variable to track the user's selected answer
+        window.userSelection = null;
+
+
+        // --- EXIF EXTRACTION FUNCTIONS ---
+
+        // Function to convert DMS (Degrees, Minutes, Seconds) array to Decimal Degrees (DD)
+        function convertDMSToDD(dmsArray, direction) {
+            if (!dmsArray || dmsArray.length !== 3) return null;
+
+            // The EXIF data is often stored as rational numbers (numerator/denominator)
+            const deg = dmsArray[0].numerator / dmsArray[0].denominator;
+            const min = dmsArray[1].numerator / dmsArray[1].denominator;
+            const sec = dmsArray[2].numerator / dmsArray[2].denominator;
+
+            let dd = deg + (min / 60) + (sec / 3600);
+
+            // South and West directions are negative
+            if (direction === 'S' || direction === 'W') {
+                dd *= -1;
+            }
+            return dd;
+        }
+
+        // Main function to read EXIF GPS data from the file
+        window.getGpsFromExif = (file) => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+
+                img.onload = function() {
+                    EXIF.getData(img, function() {
+                        const gpsLat = EXIF.getTag(this, 'GPSLatitude');
+                        const gpsLatRef = EXIF.getTag(this, 'GPSLatitudeRef');
+                        const gpsLon = EXIF.getTag(this, 'GPSLongitude');
+                        const gpsLonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+
+                        if (gpsLat && gpsLon) {
+                            try {
+                                const lat = convertDMSToDD(gpsLat, gpsLatRef);
+                                const lon = convertDMSToDD(gpsLon, gpsLonRef);
+                                resolve({ latitude: lat, longitude: lon });
+                            } catch (e) {
+                                reject(new Error("Found EXIF tags but failed to convert them."));
+                            }
+                        } else {
+                            resolve(null); // No GPS data found
+                        }
+                    });
+                };
+                img.onerror = () => reject(new Error("Failed to load image for EXIF reading."));
+            });
+        };
+        // --------------------------------------------------------
+
+        // Function to set up Firebase and authentication
+        async function setupFirebase() {
+            try {
+                if (firebaseConfig) {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    setLogLevel('Debug'); // Enable debug logging for Firestore
+
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            window.userId = user.uid;
+                        } else {
+                            // Sign in anonymously if no token is available
+                            await signInAnonymously(auth);
+                            // The onAuthStateChanged listener will fire again with the anonymous user.
+                        }
+                        window.isAuthReady = true;
+                        console.log("Firebase Auth Ready. User ID:", window.userId);
+                    });
+
+                    // Use custom token if provided
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    }
+
+                } else {
+                    console.error("Firebase config is missing.");
+                    // Still allow the app logic to run, but skip Firestore setup
+                }
+            } catch (e) {
+                console.error("Error setting up Firebase:", e);
+            }
+        }
+
+        /**
+         * Saves the quiz data and location to Firestore.
+         * @param {object} quizData The structured data from the VLM.
+         * @param {object | null} latLon The extracted {latitude, longitude} object, or null.
+         */
+        window.saveQuizToFirestore = async (quizData, latLon) => {
+            if (!window.db || !window.userId) {
+                console.error("Firestore or User ID is not initialized. Cannot save.");
+                return;
+            }
+
+            // Create a new document reference with a unique ID
+            const quizRef = doc(collection(window.db, "quizzes"));
+
+            const dataToSave = {
+                userId: window.userId,
+                createdAt: new Date(),
+                question: quizData.question,
+                correctAnswer: quizData.options[quizData.correct_answer],
+                correctOption: quizData.correct_answer,
+                options: quizData.options,
+                // Save the location data if it exists
+                location: latLon ? {
+                    latitude: latLon.latitude,
+                    longitude: latLon.longitude
+                } : null,
+            };
+
+            try {
+                await setDoc(quizRef, dataToSave);
+                console.log("Quiz saved to Firestore with ID:", quizRef.id);
+                // You might want to return the ID for map display later
+                return quizRef.id;
+            } catch (e) {
+                console.error("Error saving quiz to Firestore:", e);
+                window.showError("Failed to save quiz data to the database.");
+            }
+        };
+
+        // --- Core Application Logic ---
+
+        const MAX_IMAGE_SIZE = 1024; // Max width or height in pixels for resizing
+
+        // Helper function for Base64 conversion with image resizing
+        window.convertToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    const img = new Image();
+
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        let width = img.width;
+                        let height = img.height;
+
+                        // Determine the new dimensions while maintaining aspect ratio
+                        if (width > height) {
+                            if (width > MAX_IMAGE_SIZE) {
+                                height *= MAX_IMAGE_SIZE / width;
+                                width = MAX_IMAGE_SIZE;
+                            }
+                        } else {
+                            if (height > MAX_IMAGE_SIZE) {
+                                width *= MAX_IMAGE_SIZE / height;
+                                height = MAX_IMAGE_SIZE;
+                            }
+                        }
+
+                        // Set canvas dimensions to the new, smaller size
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        // Draw the image onto the canvas with new dimensions
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Get the resized image data as JPEG (good for photos) with a quality of 80%
+                        // and extract only the Base64 part after the comma.
+                        const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+                        resolve(resizedBase64);
+                    };
+
+                    img.onerror = () => reject(new Error("Failed to load image for resizing."));
+                    img.src = e.target.result;
+                };
+
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        // Utility for displaying errors
+        window.showError = (message) => {
+            const errorBox = document.getElementById('errorBox');
+            document.getElementById('errorMessage').textContent = message;
+            errorBox.classList.remove('hidden');
+            errorBox.classList.add('opacity-100');
+            setTimeout(() => {
+                errorBox.classList.add('opacity-0');
+                errorBox.classList.remove('opacity-100');
+                setTimeout(() => errorBox.classList.add('hidden'), 300);
+            }, 5000);
+        };
+
+        // Global map variable
+        let quizMap = null;
+        const DEFAULT_CENTER = [37.9838, 23.7275]; // Athens, Greece (as a fallback)
+
+        // --- FIRESTORE FETCH & MAP PLOTTING (CRITICALLY MISSING) ---
+
+        // Function to fetch and plot quizzes
+        window.loadQuizzesFromFirestore = () => {
+            if (!window.db) return;
+
+            // 1. Query for all quizzes that have a location saved
+            const quizzesRef = collection(window.db, "quizzes");
+            const q = query(quizzesRef, where("location", "!=", null));
+
+            // Clear any previous markers (to prevent duplicates on re-render)
+            quizMap.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                    quizMap.removeLayer(layer);
+                }
+            });
+
+            // 2. Listen for real-time updates
+            onSnapshot(q, (snapshot) => {
+                let firstMarkerLocation = null;
+
+                snapshot.docChanges().forEach((change) => {
+                    const quiz = change.doc.data();
+
+                    if (quiz.location && (change.type === "added" || change.type === "modified")) {
+                        const lat = quiz.location.latitude;
+                        const lon = quiz.location.longitude;
+
+                        if (!firstMarkerLocation) {
+                            firstMarkerLocation = [lat, lon];
+                        }
+
+                        // 3. Create the Marker
+                        const marker = L.marker([lat, lon]).addTo(quizMap);
+
+                        // 4. Bind Pop-up and Click Handler
+                        marker.bindPopup(`<b>Question:</b> ${quiz.question}`);
+
+                        marker.on('click', function (e) {
+                            document.getElementById('detailQuestion').textContent = quiz.question;
+                            document.getElementById('detailLocation').textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                            document.getElementById('detailAnswer').textContent = `Correct Answer: ${quiz.correctAnswer}`;
+                            document.getElementById('markerDetails').classList.remove('hidden');
+                        });
+                    }
+                });
+
+                // 5. Adjust the map view after loading
+                if (firstMarkerLocation) {
+                    // Center the map on the first found marker and zoom in
+                    quizMap.setView(firstMarkerLocation, 10);
+                } else {
+                    // If no geo-tagged quizzes are found, reset to default view
+                    quizMap.setView(DEFAULT_CENTER, 2);
+                }
+            });
+        };
+        // ---------------------------------------------------------------
+
+        // Function to initialize the map
+        window.initMap = () => {
+            // Check if the map has already been initialized
+            if (quizMap) {
+                quizMap.remove(); // Remove previous instance if it exists
+            }
+
+            // Initialize the map centered on the default location
+            quizMap = L.map('quizMap').setView(DEFAULT_CENTER, 2); // Zoom level 2 (world view)
+
+            // Add a tile layer (the actual map image) from OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(quizMap);
+
+            console.log("Map initialized.");
+            window.loadQuizzesFromFirestore(); // Load data once map is ready
+        };
+
+        // Exponential backoff retry logic for fetch
+        window.fetchWithExponentialBackoff = async (url, options, retries = 5, delay = 1000) => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429) return response; // Not throttling, return response
+                    console.log(`Rate limit hit. Retrying in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // Exponentially increase delay
+                } catch (error) {
+                    console.error("Fetch error, retrying...", error);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+            throw new Error("Failed to fetch from API after multiple retries due to rate limiting or persistent error.");
+        };
+
+        const API_KEY = "{{ api_key }}"; // to hide
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+
+        // Main function to generate the question
+        window.generateQuestion = async () => {
+            const imageInput = document.getElementById('imageInput');
+            const file = imageInput.files[0];
+            const resultCard = document.getElementById('resultCard');
+            const uploadedImagePreview = document.getElementById('uploadedImagePreview');
+            const button = document.getElementById('generateButton');
+            const buttonText = document.getElementById('buttonText');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            // Get the custom inputs from the HIDDEN fields, which are updated by the buttons
+            const ageInput = document.getElementById('ageInput').value.trim();
+            const themeInput = document.getElementById('themeInput').value.trim();
+
+            if (!file) {
+                showError("Please select an image file first.");
+                return;
+            }
+
+            button.disabled = true;
+            buttonText.textContent = "Generating...";
+            loadingIndicator.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+            document.getElementById('answerText').classList.add('hidden');
+
+            try {
+                // START OF (GET) COORDINATES (CODE)
+                let latLon = null;
+                try {
+                    latLon = await window.getGpsFromExif(file);
+                    if (latLon) {
+                        console.log(`Extracted GPS: Lat ${latLon.latitude}, Lon ${latLon.longitude}`);
+                    }
+                } catch (e) {
+                    console.warn("Could not read EXIF data:", e.message);
+                }
+                // ENF OF COORDINATES
+
+                // 1. Convert and resize image to Base64
+                const base64ImageData = await convertToBase64(file);
+
+                // Display a preview of the image used (Note: this still uses the original file object URL for display quality)
+                uploadedImagePreview.src = URL.createObjectURL(file);
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+
+                // 2. Define the JSON schema for structured output (remains unchanged)
+                const responseSchema = {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            "question": { "type": "STRING", "description": "The multiple-choice question." },
+                            "options": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "A": { "type": "STRING" },
+                                    "B": { "type": "STRING" },
+                                    "C": { "type": "STRING" },
+                                    "D": { "type": "STRING" }
+                                },
+                                "required": ["A", "B", "C", "D"],
+                                "description": "Exactly four answer options labeled A, B, C, and D."
+                            },
+                            "correct_answer": { "type": "STRING", "description": "The single correct option label (A, B, C, or D)." }
+                        },
+                        "required": ["question", "options", "correct_answer"]
+                    }
+                };
+
+                // 3. Construct the dynamic user prompt
+                let userPrompt = `Generate the output **in the Greek language**. Generate one compelling and specific multiple-choice question based *only* on the content of the provided image. `;
+
+                // START OF (GET) COORDINATES (CODE)
+                if (latLon) {
+                    userPrompt += `The image was taken near **Latitude ${latLon.latitude.toFixed(4)} and Longitude ${latLon.longitude.toFixed(4)}**. `;
+                }
+                // ENF OF COORDINATES
+
+                if (themeInput) {
+                    userPrompt += `The question must relate specifically to the theme of "${themeInput}". `;
+                }
+
+                userPrompt += `Tailor the language and complexity of the question and options for a target audience of: "${ageInput}". `;
+                userPrompt += `Provide exactly four options (A, B, C, D) and identify the single correct option.`;
+
+
+                // 4. Construct the API payload
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: userPrompt },
+                                {
+                                    inlineData: {
+                                        mimeType: 'image/jpeg',
+                                        data: base64ImageData
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: responseSchema,
+                    }
+                };
+
+                // 5. Send the request to the VLLM
+                const response = await fetchWithExponentialBackoff(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.candidates || result.candidates.length === 0) {
+                    throw new Error(result.error?.message || "API call failed with no candidates returned.");
+                }
+
+                const jsonText = result.candidates[0].content.parts[0].text;
+                const parsedJson = JSON.parse(jsonText);
+
+                // The expected output is an array containing one question object
+                if (!Array.isArray(parsedJson) || parsedJson.length === 0) {
+                     throw new Error("Model returned invalid structure.");
+                }
+
+                const quizData = parsedJson[0];
+
+                // --- NEW STEP 6: SAVE DATA TO FIRESTORE ---
+                if (latLon) {
+                    // Only save if we successfully extracted coordinates
+                    await window.saveQuizToFirestore(quizData, latLon);
+                } else {
+                    console.warn("No GPS coordinates found, saving quiz data without location.");
+                    // If you still want to save the quiz even without location:
+                    // await window.saveQuizToFirestore(quizData, null);
+                }
+                // --- END NEW STEP 6 ---
+
+                // --- NEW: LOG DATA TO CONSOLE (and aiwalk.log) ---
+                console.log("--- Quiz Generation Log ---");
+
+                if (latLon) {
+                    console.log(`GPS Location: Lat ${latLon.latitude.toFixed(4)}, Lon ${latLon.longitude.toFixed(4)}`);
+                } else {
+                    console.log("GPS Location: Not available in EXIF data.");
+                }
+
+                console.log(`Audience: ${ageInput}`);
+                console.log(`Theme: ${themeInput || 'General'}`);
+                console.log(`Question: ${quizData.question}`);
+                console.log(`Correct Answer (ID): ${quizData.correct_answer}`);
+                console.log(`Correct Answer (Text): ${quizData.options[quizData.correct_answer]}`);
+                console.log("Options:");
+                console.log(`  A: ${quizData.options.A}`);
+                console.log(`  B: ${quizData.options.B}`);
+                console.log(`  C: ${quizData.options.C}`);
+                console.log(`  D: ${quizData.options.D}`);
+                console.log("---------------------------");
+                // --- END NEW LOGGING ---
+
+                // 6. Render the result
+                window.quizData = quizData; // Store globally for showAnswer
+                renderQuiz(quizData);
+                resultCard.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Quiz generation failed:", error);
+                showError("Failed to generate quiz. " + (error.message || "Please try a different image."));
+            } finally {
+                button.disabled = !imageInput.files[0]; // Enable if a file is still selected
+                buttonText.textContent = "Generate Question";
+                loadingIndicator.classList.add('hidden');
+            }
+        };
+
+        window.renderQuiz = (quiz) => {
+            // Reset user selection when a new quiz is generated
+            window.userSelection = null;
+            document.getElementById('questionText').textContent = quiz.question;
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+
+            const letters = ['A', 'B', 'C', 'D'];
+            letters.forEach(letter => {
+                const text = quiz.options[letter];
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'answer-option bg-gray-50 p-3 rounded-lg border border-gray-200 text-gray-700';
+                optionDiv.innerHTML = `<span class="font-bold text-blue-600 mr-2">${letter}:</span> ${text}`;
+                optionDiv.id = `option-${letter}`;
+                // Add click handler for selection
+                optionDiv.setAttribute('onclick', `selectAnswer('${letter}')`);
+                optionsContainer.appendChild(optionDiv);
+            });
+
+            document.getElementById('answerText').classList.add('hidden');
+            document.getElementById('showAnswerButton').classList.remove('hidden');
+        };
+
+        // New function to handle user selection
+        window.selectAnswer = (selectedLetter) => {
+            window.userSelection = selectedLetter;
+            const optionsContainer = document.getElementById('optionsContainer');
+            const options = optionsContainer.children;
+
+            // Remove selection highlighting from all options
+            for (let i = 0; i < options.length; i++) {
+                options[i].classList.remove('selected-by-user');
+            }
+
+            // Add selection highlighting to the clicked option
+            const selectedOption = document.getElementById(`option-${selectedLetter}`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected-by-user');
+            }
+        };
+
+        window.showAnswer = () => {
+            if (!window.quizData) return;
+
+            const correct_answer = window.quizData.correct_answer;
+            const optionsContainer = document.getElementById('optionsContainer');
+            const options = optionsContainer.children;
+
+            // 1. Clear previous feedback classes and disable selection
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                const optionLetter = option.id.split('-')[1];
+
+                // Clear all previous visual states (selected-by-user, correct, incorrect)
+                option.classList.remove('selected-by-user', 'correct', 'incorrect');
+
+                // 2. Mark the correct answer
+                if (optionLetter === correct_answer) {
+                    option.classList.add('correct');
+                }
+
+                // 3. Provide feedback on the user's selection (if any)
+                if (window.userSelection && optionLetter === window.userSelection) {
+                    if (optionLetter !== correct_answer) {
+                        // User selected incorrectly: mark their choice as incorrect
+                        option.classList.add('incorrect');
+                    } else {
+                        // User selected correctly: ensure their choice is marked as correct (which is already done in step 2)
+                        option.classList.add('correct');
+                    }
+                }
+
+                // 4. Remove the onclick attribute to prevent further selection
+                option.removeAttribute('onclick');
+            }
+
+            // Display the answer text in Greek
+            const answerTextElement = document.getElementById('answerText');
+            answerTextElement.textContent = `Σωστή Απάντηση: ${correct_answer} - ${window.quizData.options[correct_answer]}`;
+            answerTextElement.classList.remove('hidden');
+            document.getElementById('showAnswerButton').classList.add('hidden');
+        };
+
+        // Function to handle the selection logic for the new buttons
+        window.setupPillSelection = (containerId, hiddenInputId) => {
+            const container = document.getElementById(containerId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+
+            container.querySelectorAll('.selection-pill').forEach(button => {
+                button.addEventListener('click', () => {
+                    // 1. Remove 'selected' class from all buttons in the container
+                    container.querySelectorAll('.selection-pill').forEach(btn => {
+                        btn.classList.remove('selected');
+                    });
+
+                    // 2. Add 'selected' class to the clicked button
+                    button.classList.add('selected');
+
+                    // 3. Update the value of the hidden input
+                    hiddenInput.value = button.getAttribute('data-value');
+                });
+            });
+        };
+
+        // Event listener to enable the button once a file is selected
+        document.getElementById('imageInput').addEventListener('change', (e) => {
+            const button = document.getElementById('generateButton');
+            button.disabled = !e.target.files.length;
+            // Hide the result card when a new file is selected
+            document.getElementById('resultCard').classList.add('hidden');
+        });
+
+        // Initialize Firebase and set up pill selectors on load
+        setupFirebase();
+        setupPillSelection('ageSelection', 'ageInput');
+        setupPillSelection('themeSelection', 'themeInput');
+
+        // --- NEW: Initialize the map on page load ---
+        window.initMap();
+
+    </script>
+</body>
+</html>

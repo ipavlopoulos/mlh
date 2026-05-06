@@ -139,19 +139,9 @@
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Configuration ---
-	const GEMINI_API_KEY = "{{ api_key }}"; 
-        
         // Global Firebase/Auth/App Variables
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "",
-            authDomain: "way-to-school.firebaseapp.com",
-            projectId: "way-to-school",
-            storageBucket: "way-to-school.firebasestorage.app",
-            messagingSenderId: "673870615354",
-            appId: "1:673870615354:web:a7a77c9794c6478320b603",
-            measurementId: "G-XBXDFRMKM3"
-        };
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {{ firebase_config|tojson }};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         setLogLevel('debug'); // Enable Firestore logging
@@ -248,9 +238,7 @@
             geminiLoadingMessage.textContent = 'Ανάλυση αποτελεσμάτων και δημιουργία εκπαιδευτικών σημείων συζήτησης με το Gemini...';
             geminiLoadingMessage.classList.remove('hidden');
 
-            const model = "gemini-2.5-flash-preview-09-2025";
-            const apiKey = GEMINI_API_KEY; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const apiUrl = "{{ url_for('call_gemini') }}";
             
             // Prepare data for the prompt
             const quizDataList = quizzes.map(q => ({

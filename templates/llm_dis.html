@@ -108,7 +108,7 @@ async function callBedrock(prompt) {
   */
 
   try {
-    const response = await fetch("https://applied.ml.cs.aueb.gr/api/bedrock", {
+    const response = await fetch("{{ url_for('call_bedrock') }}", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ "prompt": prompt }),

@@ -203,21 +203,9 @@
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import {setLogLevel} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- Configuration ---
-    // Κλειδί Gemini API. Το ορίζουμε ως κενή συμβολοσειρά για να το παρέχει αυτόματα το Canvas.
-    const GEMINI_API_KEY = "";
-
     // Global Firebase/Auth/App Variables
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-        apiKey: "",
-        authDomain: "way-to-school.firebaseapp.com",
-        projectId: "way-to-school",
-        storageBucket: "way-to-school.firebasestorage.app",
-        messagingSenderId: "673870615354",
-        appId: "1:673870615354:web:a7a77c9794c6478320b603",
-        measurementId: "G-XBXDFRMKM3"
-    };
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {{ firebase_config|tojson }};
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
     setLogLevel('debug'); // Enable Firestore logging
@@ -452,10 +440,7 @@
         const theme = document.getElementById('theme-select').value;
         const language = document.getElementById('language-input').value;
 
-        const model = "gemini-2.5-flash-preview-09-2025";
-
-        const apiKey = `{{ api_key }}`;
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const apiUrl = "{{ url_for('call_gemini') }}";
         const mimeType = downscaledImageBase64.match(/data:(.*?);/)?.[1] || 'image/jpeg';
         const base64Data = downscaledImageBase64.split(',')[1];
 

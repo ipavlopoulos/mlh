@@ -200,15 +200,7 @@
         let mapMarkers = []; // Array to keep track of markers
         
         // --- FIREBASE CONFIG & APP ID ---
-        const firebaseConfig = {
-          apiKey: "",
-          authDomain: "aiwalk.firebaseapp.com",
-          projectId: "aiwalk",
-          storageBucket: "aiwalk.firebasestorage.app",
-          messagingSenderId: "153241976898",
-          appId: "1:153241976898:web:9886a93a28af5d8b3b6ddb",
-          measurementId: "G-WJJY4ZQF5V"
-        };
+        const firebaseConfig = {{ firebase_config|tojson }};
         
         const effectiveConfig = (typeof __firebase_config !== 'undefined') 
             ? JSON.parse(__firebase_config) 
@@ -217,9 +209,7 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'walksafe-prototype';
 
         // --- GEMINI API CONFIG ---
-        const apiKey = "{{ api_key }}"; // to hide
-        const geminiModel = "gemini-2.5-flash-preview-09-2025";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
+        const apiUrl = "{{ url_for('call_gemini') }}";
 
         // Define the expected JSON schema for the AI response
         const geminiSchema = {
@@ -390,11 +380,6 @@
                 alert("Please upload an image first.");
                 return;
             }
-            if (apiKey === "") {
-                alert("Gemini API key is missing.");
-                return;
-            }
-
             analyzeButton.classList.add('hidden');
             loadingContainer.classList.remove('hidden');
             resultsForm.classList.add('hidden');

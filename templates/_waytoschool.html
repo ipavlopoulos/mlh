@@ -502,8 +502,7 @@
             throw new Error("Failed to fetch from API after multiple retries due to rate limiting or persistent error.");
         };
 
-        const API_KEY = "{{ api_key }}"; // to hide
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        const API_URL = "{{ url_for('call_gemini') }}";
 
         // Main function to generate the question
         window.generateQuestion = async () => {

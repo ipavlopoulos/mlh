@@ -3,7 +3,7 @@ import uuid
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 from geopy.geocoders import Nominatim
-from PIL import Image
+from PIL import Image, ImageOps, UnidentifiedImageError
 from PIL.ExifTags import GPSTAGS, TAGS
 from werkzeug.utils import secure_filename
 
@@ -15,6 +15,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 LANDSCAPE_FOLDER = os.path.join(UPLOAD_DIR, "landscape")
 ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp"}
+DEFAULT_MAX_IMAGE_SIDE = 1600
+DEFAULT_JPEG_QUALITY = 82
 
 landscape_bp = Blueprint(
     "landscape",
@@ -104,6 +106,19 @@ def reverse_geocode(lat, lon):
         return None, None, None
 
 
+def save_optimized_image(file, filepath):
+    try:
+        image = Image.open(file.stream)
+    except UnidentifiedImageError as exc:
+        raise ValueError("The uploaded file is not a valid image.") from exc
+
+    image = ImageOps.exif_transpose(image).convert("RGB")
+    max_side = current_app.config.get("LANDSCAPE_MAX_IMAGE_SIDE", DEFAULT_MAX_IMAGE_SIDE)
+    jpeg_quality = current_app.config.get("LANDSCAPE_JPEG_QUALITY", DEFAULT_JPEG_QUALITY)
+    image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+    image.save(filepath, "JPEG", quality=jpeg_quality, optimize=True)
+
+
 @landscape_bp.route("/", methods=["GET", "POST"])
 def index():
     error = None
@@ -123,9 +138,11 @@ def index():
             error = "Upload a JPEG, PNG, or WebP image."
         else:
             try:
-                filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
+                original_filename = secure_filename(file.filename) or "upload"
+                stem = os.path.splitext(original_filename)[0] or "upload"
+                filename = f"{uuid.uuid4()}_{stem}.jpg"
                 filepath = os.path.join(LANDSCAPE_FOLDER, filename)
-                file.save(filepath)
+                save_optimized_image(file, filepath)
 
                 exif = get_exif_data(filepath)
                 coords = get_coordinates(exif)
@@ -166,12 +183,24 @@ def index():
 
                 flash("Thank you! Your wall writing has been added.", "success")
                 return redirect(url_for("landscape.index"))
+            except ValueError as exc:
+                error = str(exc)
             except Exception as exc:
                 current_app.logger.exception("Landscape upload failed")
                 error = str(exc)
 
     items = get_all_landscape_items(limit=5)
     return render_template("landscape.html", items=items, error=error)
+
+
+@landscape_bp.errorhandler(413)
+def upload_too_large(error):
+    items = get_all_landscape_items(limit=5)
+    return render_template(
+        "landscape.html",
+        items=items,
+        error="The image is too large. Please upload a smaller photo.",
+    ), 413
 
 
 @landscape_bp.route("/uploads/<path:filename>")

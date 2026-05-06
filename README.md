@@ -25,6 +25,9 @@ All deploy-time settings are read from environment variables. See `.env.example`
 
 Set `URL_PREFIX=/vmc` when the app is served behind that public path.
 
+Landscape uploads are normalized server-side. Tune `LANDSCAPE_MAX_IMAGE_SIDE`,
+`LANDSCAPE_JPEG_QUALITY`, and Flask's `MAX_CONTENT_LENGTH` as needed.
+
 Firebase config must be provided as JSON through:
 
 - `WAY_TO_SCHOOL_FIREBASE_CONFIG`

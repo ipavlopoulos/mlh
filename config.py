@@ -21,6 +21,8 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev")
     TEMPLATES_AUTO_RELOAD = os.getenv("TEMPLATES_AUTO_RELOAD", "true").lower() == "true"
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(8 * 1024 * 1024)))
+    LANDSCAPE_MAX_IMAGE_SIDE = int(os.getenv("LANDSCAPE_MAX_IMAGE_SIDE", "1600"))
+    LANDSCAPE_JPEG_QUALITY = int(os.getenv("LANDSCAPE_JPEG_QUALITY", "82"))
 
     MODEL_PATH = os.getenv("MODEL_PATH", "best_swin_nocurr_seed42.pth")
     IMG_SIZE = (224, 224)

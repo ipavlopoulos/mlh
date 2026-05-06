@@ -22,6 +22,8 @@ The Swin checkpoint is intentionally not committed. Place `best_swin_nocurr_seed
 
 All deploy-time settings are read from environment variables. See `.env.example` for the full list.
 
+Set `URL_PREFIX=/vmc` when the app is served behind that public path.
+
 Firebase config must be provided as JSON through:
 
 - `WAY_TO_SCHOOL_FIREBASE_CONFIG`

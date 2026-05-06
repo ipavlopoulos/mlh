@@ -8,9 +8,23 @@ from services.gemini_service import GeminiService
 from services.model_service import SwinPredictor
 
 
+class PrefixMiddleware:
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if self.prefix and (path == self.prefix or path.startswith(f"{self.prefix}/")):
+            environ["SCRIPT_NAME"] = environ.get("SCRIPT_NAME", "") + self.prefix
+            environ["PATH_INFO"] = path[len(self.prefix):] or "/"
+        return self.app(environ, start_response)
+
+
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, Config.URL_PREFIX)
 
 predictor = SwinPredictor(Config.MODEL_PATH, Config.LABELS, Config.IMG_SIZE)
 gemini = GeminiService(Config.GEMINI_API_KEY, Config.GEMINI_MODEL)

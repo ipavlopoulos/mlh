@@ -182,6 +182,10 @@
 
 <script>
 let locationReady = false;
+let submitting = false;
+
+const CLIENT_MAX_IMAGE_SIDE = 1280;
+const CLIENT_JPEG_QUALITY = 0.72;
 
 function getLocationAndFill() {
     if (!navigator.geolocation) {
@@ -218,15 +222,93 @@ function getLocationAndFill() {
     );
 }
 
+function loadImage(file) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = URL.createObjectURL(file);
+    });
+}
+
+async function compressImage(file) {
+    if (!file || !file.type.startsWith("image/")) {
+        return file;
+    }
+
+    const image = await loadImage(file);
+    const scale = Math.min(1, CLIENT_MAX_IMAGE_SIDE / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, width, height);
+    URL.revokeObjectURL(image.src);
+
+    const blob = await new Promise(resolve => {
+        canvas.toBlob(resolve, "image/jpeg", CLIENT_JPEG_QUALITY);
+    });
+
+    if (!blob) {
+        return file;
+    }
+
+    const stem = file.name.replace(/\.[^/.]+$/, "") || "upload";
+    return new File([blob], `${stem}.jpg`, { type: "image/jpeg" });
+}
+
 window.onload = getLocationAndFill;
 
-document.getElementById("uploadForm").addEventListener("submit", function (event) {
+document.getElementById("uploadForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    if (submitting) {
+        return;
+    }
+
     if (!locationReady) {
-        event.preventDefault();
         alert("Getting your location... please wait a moment and try again.");
         return;
     }
-    document.getElementById("uploadOverlay").style.display = "flex";
+
+    submitting = true;
+    const overlay = document.getElementById("uploadOverlay");
+    overlay.style.display = "flex";
+
+    try {
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+        const input = document.getElementById("imageInput");
+        const file = input.files[0];
+
+        if (file) {
+            const compressedFile = await compressImage(file);
+            formData.set("image", compressedFile, compressedFile.name);
+        }
+
+        const response = await fetch(form.action || window.location.href, {
+            method: "POST",
+            body: formData
+        });
+
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+
+        const html = await response.text();
+        document.open();
+        document.write(html);
+        document.close();
+    } catch (error) {
+        console.error("Upload failed:", error);
+        alert("Upload failed. Please try again with a smaller image.");
+        overlay.style.display = "none";
+        submitting = false;
+    }
 });
 </script>
 

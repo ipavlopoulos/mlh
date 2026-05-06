@@ -1,6 +1,11 @@
 import os
 import json
 
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
 
 def _json_env(name, default=None):
     raw_value = os.getenv(name)

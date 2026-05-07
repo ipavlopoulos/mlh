@@ -156,8 +156,8 @@ def call_gemini():
         return jsonify(gemini.generate_content(payload))
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": str(e)}), 502
+    except requests.exceptions.RequestException:
+        return jsonify({"error": "Gemini API request failed"}), 502
 
 
 @app.route("/api/bedrock", methods=["POST"])

@@ -24,5 +24,6 @@ class GeminiService:
             json=payload,
             timeout=120,
         )
-        response.raise_for_status()
+        if not response.ok:
+            raise RuntimeError(f"Gemini API request failed with status {response.status_code}")
         return response.json()
